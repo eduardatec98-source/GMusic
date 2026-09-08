@@ -11,3 +11,5 @@ npx expo install expo-audio expo-linear-gradient expo-splash-screen expo-status-
 npx expo install react-native-safe-area-context @react-native-community/slider
 npx expo install @expo/vector-icons expo-font
 npx expo install react-dom react-native-web @expo/metro-runtime
+
+https://github.com/orgs/2Mtec2026A/repositories
