@@ -21,10 +21,10 @@ import colors from '../theme/colors';
 const audioSources = songs.map((song) => song.url);
 
 export default function MusicPlayer() {
-  const { width } = useWindowDimensions();
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const { height, width } = useWindowDimensions();
+  const listref = useRef(null);
 
-  const playlistOptions = useMemo(
+    const playlistOptions = useMemo(
     () => ({
       sources: audioSources,
       loop: 'none',
@@ -35,8 +35,15 @@ export default function MusicPlayer() {
   const playlist = useAudioPlaylist(playlistOptions);
   const status = useAudioPlaylistStatus(playlist);
 
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [favoriteIds, setFavoriteIds] = useState (() => new Set());
+  const [repeatOne, setReaptOne] = useState(false);
+  const [isSeeking, setReaptOne] = useState(false);
+  const [isSeeking, setSeeking] = useState(false);
+
   const currentSong = songs[selectedIndex];
   const artworkSize = Math.min(width-40, 380);
+
 
   useEffect(() => {
     setAudioModeAsync({
@@ -51,6 +58,10 @@ export default function MusicPlayer() {
       setSelectedIndex(status.currentIndex);
     }
   }, [status.currentIndex]);
+
+  useEffect(() => {
+    playlist.loop = repeatOne ? 'single' : 'none';
+  }, [playlist,repeatOne]);
 
   function selectSong(index) {
     if (index < 0 || index >= songs.length || index === selectedIndex) {
@@ -77,7 +88,7 @@ export default function MusicPlayer() {
   function handleMomentumEnd(event) {
     const offset = event.nativeEvent.contentOffset.x;
     const index = Math.round(offset / width);
-    setSelectedIndex(index);
+    selectSong(index);
   }
 
   function renderArtwork({ item }) {
