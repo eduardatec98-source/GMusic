@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Slider from '@react-native-community/slider';
 import { LinearGradient } from 'expo-linear-gradient'
-
 import {
   setAudioModeAsync,
   useAudioPlaylist,
@@ -13,6 +12,7 @@ import {
   Image,
   Platform,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -20,7 +20,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import IconButton from '.../components/IconButton';
+import IconButton from '../components/IconButton';
 import songs from '../model/data';
 import colors from '../theme/colors';
 import formatTime from '../utils/formatTime';
@@ -38,6 +38,7 @@ export default function MusicPlayer() {
       updateInterval: 250,
     })
   );
+
   const playlist = useAudioPlaylist(playlistOptions);
   const status = useAudioPlaylistStatus(playlist);
 
@@ -54,46 +55,64 @@ export default function MusicPlayer() {
   const contentWidth = Math.min(Math.max(width - 40, 240), 460);
   const artworkSize = Math.min(
     contentWidth,
-    Math.max(isCompact ? 190: 240,
-      height * (isCompact ? 0.34 : 0.4)),
+    Math.max(isCompact ? 190: 240, height * (isCompact ? 0.34 : 0.4)),
       420
   );
   const duration = Number.isFinite(status.duration) ? status.duration : 0;
-  const duration = Number.isFinite(status.currentTime) ? status.currentTime : 0;
+  const currentTime = Number.isFinite(status.currentTime) ? status.currentTime : 0;
   const displayPosition = isSeeking ? seekPosition : currentTime;
   const playerUnavailable = !status.isLoaded || status.isBuffering;
-  
+
   useEffect(() => {
     setAudioModeAsync({
       playsInSilentMode: true,
       shouldPlayInBackground: false,
       interruptionMode: 'doNotMix',
     }).catch(() => {
-      setErrorMessage('Não foi possivel configurar a reprodução de áudio.')
+      setErrorMessage('Não foi possível configurar a reprodução de áudio.');
     })
   }, []);
-
+  
   useEffect(() => {
     playlist.loop = repeatOne ? 'single' : 'none';
   }, [playlist, repeatOne]);
 
   useEffect(() => {
-    if (Number.isInteger(status.currentIndex) && 
-        Number.isInteger(status.currentIndex) &&
-        status.currentIndex >= 0 &&
-        status.currentIndex < songs.length
-      ) {
+    if (
+      Number.isInteger(status.currentIndex) &&
+      status.currentIndex >= 0 &&
+      status.currentIndex < songs.length
+    ) {
       setSelectedIndex(status.currentIndex);
     }
   }, [status.currentIndex]);
 
   useEffect(() => {
-    listRef.current
-  })
+    listRef.current?.scrollToIndex({
+      index: selectedIndex,
+      animated: true,
+    });
+  }, [selectedIndex, width]);
 
-  function selectSong(index) {
+const reportPlaybackError = useCallback(() => {
+  setErrorMessage('Não foi possivel executar esta ação no player.')
+})
+
+  const selectSong = useCallback((index) => {
     if (index < 0 || index >= songs.length || index === selectedIndex) {
       return;
+    }
+    try {
+      const shouldResume = status.playing;
+      setSelectedIndex(index);
+      playlist.skipTo(index);
+
+      if (shouldResume) {
+        playlist.play;
+      }
+      
+    } catch {
+      reportPlaybackError();
     }
 
     const shouldResume = status.playing;
@@ -103,15 +122,19 @@ export default function MusicPlayer() {
     if (shouldResume) {
       playlist.play;
     }
-  }
+  }, [playlist, reportPlaybackError, status.playing]);
 
-  function handlePlayPause() {
-    if (status.playing) {
+  const handlePlayPause = useCallback(() => {
+    try {
+      if (status.playing) {
       playlist.pause();
     } else {
       playlist.play();
     }
-  }
+    } catch (error) {
+      reportPlaybackError();
+    }
+  }, [playlist, reportPlaybackError, status.playing]);
 
   function handleMomentumEnd(event) {
     const offset = event.nativeEvent.contentOffset.x;
